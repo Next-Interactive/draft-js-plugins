@@ -91,7 +91,9 @@ export default class Toolbar extends React.Component {
       const relativeRect = (
         relativeParent || document.body
       ).getBoundingClientRect();
-      const windowWidth = document.documentElement.clientWidth;
+      const windowWidth = relativeParent
+        ? relativeRect.right
+        : document.documentElement.clientWidth;
       // we should take into account a case when we don't have relative parent,
       // but our body has a margin
       const bodyMargin = relativeParent ? 0 : getMargin(document.body);
@@ -99,10 +101,14 @@ export default class Toolbar extends React.Component {
       const toolbarHalfWidth = this.toolbar.offsetWidth / 2;
       // calculating the middle of the text selection
       const fromBeginningToMiddle =
-        selectionRect.left + selectionRect.width / 2;
+        selectionRect.left +
+        selectionRect.width / 2 -
+        (relativeParent ? relativeRect.left : 0);
       // the same but against editor right side
-      const beforeWindowEnd = windowWidth - fromBeginningToMiddle;
-
+      const beforeWindowEnd =
+        windowWidth -
+        fromBeginningToMiddle -
+        (relativeParent ? relativeRect.left : 0);
       const leftToolbarMargin = getMargin(this.toolbar);
       const rightToolbarMargin = getMargin(this.toolbar, "right");
 
@@ -118,9 +124,16 @@ export default class Toolbar extends React.Component {
       if (fromBeginningToMiddle < toolbarHalfWidth + 2 * leftToolbarMargin) {
         // shift computations are different for relative editor and body
         const leftShift = relativeParent ? relativeRect.left : 0;
-        horizontalOffset = toolbarHalfWidth - leftShift + leftToolbarMargin;
+        horizontalOffset =
+          toolbarHalfWidth -
+          leftShift +
+          leftToolbarMargin +
+          (relativeParent ? relativeRect.left : 0);
         alignment = "left";
-      } else if (beforeWindowEnd < toolbarHalfWidth + 2 * rightToolbarMargin) {
+      } else if (
+        beforeWindowEnd <
+        toolbarHalfWidth * 2 + 2 * rightToolbarMargin
+      ) {
         // the same, but relative to the parent end
         // +-----------------------------------------------+
         // |                                 vvv toolbar   |
@@ -148,7 +161,7 @@ export default class Toolbar extends React.Component {
 
       const position = {
         top:
-          selectionRect.top - relativeRect.top - this.toolbar.offsetHeight + 5,
+          selectionRect.top - relativeRect.top - this.toolbar.offsetHeight - 5,
         [alignment || "left"]: horizontalOffset
       };
       this.setState({
