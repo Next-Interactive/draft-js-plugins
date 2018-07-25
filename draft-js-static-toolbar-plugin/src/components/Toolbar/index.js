@@ -1,23 +1,12 @@
 /* eslint-disable react/no-array-index-key */
 import React from "react";
-import debounce from "lodash/debounce";
 
-const getRelativeParent = element => {
-  if (!element) {
-    return null;
-  }
-
-  const position = window
-    .getComputedStyle(element)
-    .getPropertyValue("position");
-  if (position !== "static") {
-    return element;
-  }
-
-  return getRelativeParent(element.parentElement);
-};
+const RATIO_NUMBER = 100;
 
 export default class Toolbar extends React.Component {
+  toolbar = undefined;
+  parentPadding = undefined;
+  parentWidth = undefined;
   state = {
     /**
      * If this is set, the toolbar will render this instead of the regular
@@ -31,45 +20,56 @@ export default class Toolbar extends React.Component {
   };
 
   componentDidMount = () => {
-    window.addEventListener("scroll", this.handleScroll);
+    this.parentWidth = this.toolbar.parentElement.getBoundingClientRect().width;
+    this.parentPadding = parseInt(
+      window
+        .getComputedStyle(this.toolbar.parentElement)
+        .getPropertyValue("padding"),
+      10
+    );
+    this.createObserver();
   };
 
-  componentWillUnmount = () => {
-    window.removeEventListener("scroll", this.handleScroll);
-  };
+  handleIntersect = entries => {
+    const toolbar = entries[0].boundingClientRect;
 
-  handleScroll = debounce(event => {
-    const { isOut } = this.state;
-    const toolbarRect = this.toolbar.getBoundingClientRect();
-    const parent = this.toolbar.parentElement.getBoundingClientRect();
-
-    if (
-      parent.top - toolbarRect.height < 0 &&
-      parent.height + parent.top - toolbarRect.height > 0
-    ) {
-      const parentPadding = parseInt(
-        window
-          .getComputedStyle(this.toolbar.parentElement)
-          .getPropertyValue("padding"),
-        10
-      );
+    if (toolbar.top < 0) {
       this.setState({
         isOut: true,
         top: window.scrollY,
-        width: parent.width - 2 * parentPadding
+        width: this.parentWidth - 2 * this.parentPadding
       });
-    } else if (isOut) {
+    } else if (this.state.isOut) {
       this.setState({ isOut: false });
     }
-  }, 300);
+  };
 
-  // componentWillMount() {
-  //   this.props.store.subscribeToItem('selection', () => this.forceUpdate());
-  // }
+  buildThresholdList = () => {
+    const thresholds = [];
 
-  // componentWillUnmount() {
-  //   this.props.store.unsubscribeFromItem('selection', () => this.forceUpdate());
-  // }
+    for (var i = 1.0; i <= RATIO_NUMBER; i++) {
+      const ratio = i / RATIO_NUMBER;
+      thresholds.push(ratio);
+    }
+
+    thresholds.push(0);
+    return thresholds;
+  };
+
+  createObserver = () => {
+    const horizontalMargin = -(
+      this.toolbar.getBoundingClientRect().height + this.parentPadding
+    );
+
+    var options = {
+      root: null,
+      rootMargin: `${horizontalMargin}px 0px ${horizontalMargin}px 0px`,
+      threshold: this.buildThresholdList()
+    };
+
+    const observer = new IntersectionObserver(this.handleIntersect, options);
+    observer.observe(this.toolbar.parentElement);
+  };
 
   /**
    * This can be called by a child in order to render custom content instead
